@@ -4,16 +4,16 @@
 // Get them from: https://app.supabase.com → Project Settings → API
 // ============================================================
 
-const SUPABASE_URL = 'https://YOUR_PROJECT_REF.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY';
+const SUPABASE_URL = 'https://qbsjdpxshccqhcobmdjq.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_DWhjtQ26UuRIc3JZt230GQ_MVJZVnnW';
 
 // ============================================================
 // App Config
 // ============================================================
 const APP_CONFIG = {
-  appName: 'ChargeShare',
+  appName: 'VoltShare',
   // The email domain used to auto-grant admin role during dev (remove in prod)
-  adminEmail: 'admin@chargesharex.com',
+  adminEmail: 'admin@VoltShare.com',
   // Currency symbol
   currency: '$',
   // Platform fee % taken from each booking payment
