@@ -989,12 +989,18 @@ async function createNotification(userId, type, message, refId = null) {
 
 function subscribeToNotifications() {
   if (!currentUser) return;
-  sb.channel('notifs:' + currentUser.id)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUser.id}` }, (payload) => {
-      showToast(payload.new.message, 'info');
-      updateNotifBadge();
-    })
-    .subscribe();
+  try {
+    sb.channel('notifs:' + currentUser.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUser.id}` }, (payload) => {
+        showToast(payload.new.message, 'info');
+        updateNotifBadge();
+      })
+      .subscribe((status, err) => {
+        if (err) console.warn('Realtime unavailable (non-fatal):', err.message);
+      });
+  } catch (e) {
+    console.warn('Realtime channel setup failed (non-fatal):', e.message);
+  }
   updateNotifBadge();
 }
 
