@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ChargeShare — EV Charger Marketplace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+<!-- ═══════════════ NAVBAR ═══════════════ -->
+<nav id="navbar">
+  <div class="nav-brand" onclick="navigate('home')">
+    <span class="brand-icon">⚡</span>
+    <span class="brand-text">ChargeShare</span>
+  </div>
+  <div class="nav-links" id="navLinks">
+    <a onclick="navigate('search')" class="nav-link">Find Chargers</a>
+    <a onclick="navigate('host')" class="nav-link">Become a Host</a>
+    <a onclick="navigate('how-it-works')" class="nav-link">How It Works</a>
+  </div>
+  <div class="nav-actions" id="navActions">
+    <button class="btn-ghost" onclick="openModal('loginModal')">Log In</button>
+    <button class="btn-primary" onclick="openModal('loginModal')">Sign Up</button>
+  </div>
+  <div class="nav-user hidden" id="navUser">
+    <div class="notif-bell" onclick="navigate('notifications')">
+      🔔 <span class="notif-badge hidden" id="notifBadge">0</span>
+    </div>
+    <div class="avatar-menu" id="avatarMenu" onclick="toggleAvatarMenu()">
+      <img id="navAvatar" src="https://ui-avatars.com/api/?name=User&background=1a1a2e&color=00f5d4" class="nav-avatar"/>
+      <div class="avatar-dropdown hidden" id="avatarDropdown">
+        <div class="dropdown-header">
+          <span id="dropdownName">User</span>
+          <span id="dropdownEmail" class="dropdown-email"></span>
+        </div>
+        <hr/>
+        <a onclick="navigate('dashboard')">📊 Dashboard</a>
+        <a onclick="navigate('profile')">👤 My Profile</a>
+        <a onclick="navigate('my-listings')">🔌 My Listings</a>
+        <a onclick="navigate('my-bookings')">📅 My Bookings</a>
+        <a onclick="navigate('messages')">💬 Messages</a>
+        <a onclick="navigate('admin')" id="adminLink" class="hidden">🛡️ Admin Panel</a>
+        <hr/>
+        <a onclick="logout()" class="logout-link">🚪 Log Out</a>
+      </div>
+    </div>
+  </div>
+  <button class="hamburger" id="hamburger" onclick="toggleMobileMenu()">☰</button>
+</nav>
+
+<!-- ═══════════════ PAGES ═══════════════ -->
+<main id="appMain">
+
+  <!-- HOME PAGE -->
+  <div id="page-home" class="page active">
+    <section class="hero">
+      <div class="hero-bg"></div>
+      <div class="hero-content">
+        <div class="hero-badge">🌿 Sustainable Charging Network</div>
+        <h1 class="hero-title">Your Neighbors' Chargers,<br/>Now Available to You</h1>
+        <p class="hero-subtitle">Book private EV chargers near you. Hosts earn passive income. Drivers charge conveniently. Everyone wins.</p>
+        <div class="hero-search">
+          <input type="text" id="heroSearch" placeholder="Enter your location or neighbourhood..."/>
+          <button class="btn-hero" onclick="navigate('search')">Find Chargers</button>
+        </div>
+        <div class="hero-stats">
+          <div class="stat"><span class="stat-num">2,400+</span><span class="stat-label">Active Chargers</span></div>
+          <div class="stat"><span class="stat-num">98%</span><span class="stat-label">Verified Hosts</span></div>
+          <div class="stat"><span class="stat-num">4.9★</span><span class="stat-label">Avg Rating</span></div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="floating-card fc1">
+          <span>🔌</span>
+          <div><strong>Type 2 · 22kW</strong><br/><small>$0.18/kWh</small></div>
+        </div>
+        <div class="floating-card fc2">
+          <span>✅</span>
+          <div><strong>Verified Host</strong><br/><small>Instant Booking</small></div>
+        </div>
+        <div class="floating-card fc3">
+          <span>⭐</span>
+          <div><strong>4.9 Rating</strong><br/><small>48 reviews</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features-section">
+      <h2 class="section-title">How ChargeShare Works</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <h3>Find & Book</h3>
+          <p>Search nearby chargers, check availability, and book instantly or request approval from verified hosts.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Plug & Charge</h3>
+          <p>Arrive at the scheduled time. Check in via the app. The host's exact address is revealed only after booking confirmation.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💰</div>
+          <h3>Hosts Earn</h3>
+          <p>List your home charger, set your price, and earn money from your idle charging equipment every day.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3>Safe & Trusted</h3>
+          <p>Every user is verified. Reviews build trust. Admin moderation handles disputes so both sides feel protected.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <div class="cta-box">
+        <h2>List Your Charger Today</h2>
+        <p>Set your own schedule and pricing. Start earning from your home charger within 24 hours.</p>
+        <button class="btn-primary large" onclick="openModal('loginModal')">Get Started Free</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- SEARCH PAGE -->
+  <div id="page-search" class="page">
+    <div class="search-layout">
+      <div class="search-sidebar">
+        <h2>Find Chargers</h2>
+        <div class="filter-group">
+          <label>📍 Location</label>
+          <input type="text" id="filterLocation" placeholder="Address or postcode" class="filter-input"/>
+        </div>
+        <div class="filter-group">
+          <label>🔌 Connector Type</label>
+          <select id="filterConnector" class="filter-input">
+            <option value="">All Connectors</option>
+            <option value="Type 1">Type 1</option>
+            <option value="Type 2">Type 2</option>
+            <option value="CCS">CCS</option>
+            <option value="CHAdeMO">CHAdeMO</option>
+            <option value="Tesla">Tesla</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>⚡ Min Power (kW)</label>
+          <input type="range" id="filterPower" min="3" max="150" value="3" class="filter-range"/>
+          <span id="filterPowerVal">3 kW+</span>
+        </div>
+        <div class="filter-group">
+          <label>💵 Max Price ($/kWh)</label>
+          <input type="range" id="filterPrice" min="0" max="1" step="0.01" value="1" class="filter-range"/>
+          <span id="filterPriceVal">Any</span>
+        </div>
+        <div class="filter-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="filterVerified"/> Verified Hosts Only
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="filterInstant"/> Instant Booking
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="filterAvailableNow"/> Available Now
+          </label>
+        </div>
+        <button class="btn-primary full-width" onclick="searchListings()">Search</button>
+      </div>
+      <div class="search-main">
+        <div id="searchMap" class="search-map"></div>
+        <div class="search-results" id="searchResults">
+          <p class="results-loading">Loading chargers...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTING DETAIL PAGE -->
+  <div id="page-listing" class="page">
+    <div class="listing-detail" id="listingDetail"></div>
+  </div>
+
+  <!-- HOST PAGE (Add/Edit Listing) -->
+  <div id="page-host" class="page">
+    <div class="form-page">
+      <h1>List Your Charger</h1>
+      <p class="form-subtitle">Complete all sections to activate your listing. Your exact address will only be shown after booking confirmation.</p>
+      <form id="listingForm" onsubmit="submitListing(event)">
+        <div class="form-section">
+          <h3>📋 Basic Information</h3>
+          <div class="form-grid">
+            <div class="form-group full">
+              <label>Listing Title *</label>
+              <input type="text" id="lTitle" required placeholder="e.g. Fast Type 2 Home Charger – West End"/>
+            </div>
+            <div class="form-group full">
+              <label>Description *</label>
+              <textarea id="lDesc" required rows="4" placeholder="Describe your charger, parking, access instructions (general only)..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Charger Type *</label>
+              <select id="lChargerType" required>
+                <option value="">Select...</option>
+                <option>Level 1 (120V)</option>
+                <option>Level 2 (240V)</option>
+                <option>DC Fast Charger</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Connector Type *</label>
+              <select id="lConnector" required>
+                <option value="">Select...</option>
+                <option>Type 1</option>
+                <option>Type 2</option>
+                <option>CCS</option>
+                <option>CHAdeMO</option>
+                <option>Tesla</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Power Output (kW) *</label>
+              <input type="number" id="lPower" required min="1" max="350" placeholder="e.g. 22"/>
+            </div>
+            <div class="form-group">
+              <label>Price Model *</label>
+              <select id="lPriceModel" required>
+                <option value="">Select...</option>
+                <option value="per_kwh">Per kWh</option>
+                <option value="per_hour">Per Hour</option>
+                <option value="flat">Flat Rate (per session)</option>
+                <option value="free">Free</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Price (leave 0 if free)</label>
+              <input type="number" id="lPrice" min="0" step="0.01" placeholder="0.00"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>📍 Location</h3>
+          <p class="form-hint">Only city/neighbourhood shown publicly. Full address revealed after booking.</p>
+          <div class="form-grid">
+            <div class="form-group full">
+              <label>Full Address *</label>
+              <input type="text" id="lAddress" required placeholder="Full street address"/>
+            </div>
+            <div class="form-group">
+              <label>City *</label>
+              <input type="text" id="lCity" required placeholder="City"/>
+            </div>
+            <div class="form-group">
+              <label>Postcode *</label>
+              <input type="text" id="lPostcode" required placeholder="Postcode"/>
+            </div>
+            <div class="form-group">
+              <label>Latitude</label>
+              <input type="number" id="lLat" step="any" placeholder="e.g. 51.5074"/>
+            </div>
+            <div class="form-group">
+              <label>Longitude</label>
+              <input type="number" id="lLng" step="any" placeholder="e.g. -0.1278"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>📅 Availability</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Available Days</label>
+              <div class="day-picker" id="dayPicker">
+                <label class="day-btn"><input type="checkbox" value="0"/> Sun</label>
+                <label class="day-btn"><input type="checkbox" value="1"/> Mon</label>
+                <label class="day-btn"><input type="checkbox" value="2"/> Tue</label>
+                <label class="day-btn"><input type="checkbox" value="3"/> Wed</label>
+                <label class="day-btn"><input type="checkbox" value="4"/> Thu</label>
+                <label class="day-btn"><input type="checkbox" value="5"/> Fri</label>
+                <label class="day-btn"><input type="checkbox" value="6"/> Sat</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Available From</label>
+              <input type="time" id="lTimeFrom" value="08:00"/>
+            </div>
+            <div class="form-group">
+              <label>Available To</label>
+              <input type="time" id="lTimeTo" value="22:00"/>
+            </div>
+          </div>
+          <div class="toggle-row">
+            <label class="toggle-label">
+              <input type="checkbox" id="lInstantBooking" class="toggle-input"/>
+              <span class="toggle-switch"></span>
+              Instant Booking (no approval needed)
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="lApprovalRequired" class="toggle-input"/>
+              <span class="toggle-switch"></span>
+              Require my approval for each booking
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="lActive" class="toggle-input" checked/>
+              <span class="toggle-switch"></span>
+              Listing Active
+            </label>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>📸 Photos</h3>
+          <div class="form-group">
+            <label>Upload Charger Photos</label>
+            <input type="file" id="lPhotos" multiple accept="image/*" class="file-input"/>
+            <div id="photoPreview" class="photo-preview"></div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary large">
+            <span id="listingSubmitText">Publish Listing</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MY LISTINGS -->
+  <div id="page-my-listings" class="page">
+    <div class="page-container">
+      <div class="page-header">
+        <h1>My Listings</h1>
+        <button class="btn-primary" onclick="navigate('host')">+ New Listing</button>
+      </div>
+      <div id="myListingsGrid" class="listings-grid">
+        <p class="empty-state">No listings yet. <a onclick="navigate('host')">Add your first charger →</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MY BOOKINGS -->
+  <div id="page-my-bookings" class="page">
+    <div class="page-container">
+      <h1>My Bookings</h1>
+      <div class="tabs">
+        <button class="tab active" onclick="switchBookingTab('driver')">As Driver</button>
+        <button class="tab" onclick="switchBookingTab('host')">As Host</button>
+      </div>
+      <div id="bookingsDriver" class="bookings-list"></div>
+      <div id="bookingsHost" class="bookings-list hidden"></div>
+    </div>
+  </div>
+
+  <!-- MESSAGES -->
+  <div id="page-messages" class="page">
+    <div class="messages-layout">
+      <div class="conversations-list" id="conversationsList">
+        <h2>Messages</h2>
+        <div id="convList"></div>
+      </div>
+      <div class="chat-area" id="chatArea">
+        <div class="chat-empty">Select a conversation</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFILE PAGE -->
+  <div id="page-profile" class="page">
+    <div class="page-container">
+      <div class="profile-layout">
+        <div class="profile-left">
+          <div class="profile-card">
+            <img id="profileAvatar" src="https://ui-avatars.com/api/?name=User&size=120" class="profile-avatar-large"/>
+            <h2 id="profileName"></h2>
+            <p id="profileEmail" class="muted"></p>
+            <div id="profileBadges" class="badge-row"></div>
+            <div class="trust-score-box">
+              <span class="trust-label">Trust Score</span>
+              <span class="trust-score" id="trustScore">--</span>
+            </div>
+          </div>
+          <div class="verification-card">
+            <h3>Verification Status</h3>
+            <div id="verificationList"></div>
+          </div>
+        </div>
+        <div class="profile-right">
+          <div class="profile-form-card">
+            <h3>Edit Profile</h3>
+            <form onsubmit="updateProfile(event)">
+              <div class="form-group">
+                <label>Display Name</label>
+                <input type="text" id="editName"/>
+              </div>
+              <div class="form-group">
+                <label>Bio</label>
+                <textarea id="editBio" rows="3"></textarea>
+              </div>
+              <div class="form-group">
+                <label>EV Model</label>
+                <input type="text" id="editEvModel" placeholder="e.g. Tesla Model 3"/>
+              </div>
+              <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" id="editPhone" placeholder="+1 555 000 0000"/>
+              </div>
+              <button type="submit" class="btn-primary">Save Changes</button>
+            </form>
+          </div>
+          <div class="profile-form-card">
+            <h3>Upload Profile Photo</h3>
+            <input type="file" id="profilePhotoInput" accept="image/*"/>
+            <button class="btn-secondary" onclick="uploadProfilePhoto()">Upload Photo</button>
+          </div>
+          <div class="profile-form-card">
+            <h3>Phone Verification</h3>
+            <p class="muted">Verify your phone number to increase your trust score.</p>
+            <div class="form-group">
+              <input type="tel" id="phoneVerifyInput" placeholder="+1 555 000 0000"/>
+            </div>
+            <button class="btn-secondary" onclick="sendPhoneOtp()">Send OTP</button>
+            <div id="otpSection" class="hidden">
+              <div class="form-group" style="margin-top:12px">
+                <input type="text" id="otpInput" placeholder="Enter OTP"/>
+              </div>
+              <button class="btn-primary" onclick="verifyPhoneOtp()">Verify</button>
+            </div>
+          </div>
+          <div class="profile-form-card">
+            <h3>ID Verification</h3>
+            <p class="muted">Upload a government-issued ID. Reviewed within 24 hours by admin.</p>
+            <input type="file" id="idDocInput" accept="image/*,.pdf"/>
+            <button class="btn-secondary" onclick="uploadIdDoc()">Submit for Review</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page">
+    <div class="page-container">
+      <h1>Dashboard</h1>
+      <div class="dashboard-stats" id="dashStats"></div>
+      <div class="dashboard-recent">
+        <div class="dashboard-col">
+          <h3>Recent Bookings</h3>
+          <div id="dashBookings"></div>
+        </div>
+        <div class="dashboard-col">
+          <h3>Notifications</h3>
+          <div id="dashNotifs"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS -->
+  <div id="page-notifications" class="page">
+    <div class="page-container">
+      <h1>Notifications</h1>
+      <div id="notificationsList"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN PAGE -->
+  <div id="page-admin" class="page">
+    <div class="page-container">
+      <h1>🛡️ Admin Panel</h1>
+      <div class="tabs">
+        <button class="tab active" onclick="switchAdminTab('verifications')">Verifications</button>
+        <button class="tab" onclick="switchAdminTab('listings')">Listings</button>
+        <button class="tab" onclick="switchAdminTab('bookings')">Bookings</button>
+        <button class="tab" onclick="switchAdminTab('reports')">Reports</button>
+        <button class="tab" onclick="switchAdminTab('users')">Users</button>
+      </div>
+      <div id="adminContent"></div>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div id="page-how-it-works" class="page">
+    <div class="page-container how-it-works">
+      <h1>How ChargeShare Works</h1>
+      <div class="hiw-grid">
+        <div class="hiw-section">
+          <h2>For EV Drivers</h2>
+          <div class="hiw-steps">
+            <div class="hiw-step"><span class="step-num">1</span><div><strong>Create an account</strong> with Google, verify your email and phone.</div></div>
+            <div class="hiw-step"><span class="step-num">2</span><div><strong>Search</strong> for chargers near you by location, connector type, and availability.</div></div>
+            <div class="hiw-step"><span class="step-num">3</span><div><strong>Book</strong> instantly or send a booking request to the host.</div></div>
+            <div class="hiw-step"><span class="step-num">4</span><div><strong>Get the address</strong> only after your booking is confirmed or approved.</div></div>
+            <div class="hiw-step"><span class="step-num">5</span><div><strong>Charge</strong>, check out, and leave a review for the host.</div></div>
+          </div>
+        </div>
+        <div class="hiw-section">
+          <h2>For Charger Hosts</h2>
+          <div class="hiw-steps">
+            <div class="hiw-step"><span class="step-num">1</span><div><strong>Sign up</strong> and verify your identity and charger.</div></div>
+            <div class="hiw-step"><span class="step-num">2</span><div><strong>List your charger</strong> with photos, connector info, schedule, and pricing.</div></div>
+            <div class="hiw-step"><span class="step-num">3</span><div><strong>Accept bookings</strong> automatically or manually approve each request.</div></div>
+            <div class="hiw-step"><span class="step-num">4</span><div><strong>Earn income</strong> from every charging session. Payments are held securely.</div></div>
+            <div class="hiw-step"><span class="step-num">5</span><div><strong>Enable/disable</strong> your listing at any time with one tap.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ═══════════════ MODALS ═══════════════ -->
+
+<!-- LOGIN MODAL -->
+<div id="loginModal" class="modal-overlay hidden" onclick="handleModalBgClick(event,'loginModal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('loginModal')">✕</button>
+    <div class="modal-logo">⚡ ChargeShare</div>
+    <h2>Welcome Back</h2>
+    <p class="modal-sub">Sign in to book chargers or manage your listings.</p>
+    <button class="btn-google" onclick="loginWithGoogle()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" alt="Google"/>
+      Continue with Google
+    </button>
+    <div class="divider">or</div>
+    <div class="form-group">
+      <input type="email" id="loginEmail" placeholder="Email address"/>
+    </div>
+    <div class="form-group">
+      <input type="password" id="loginPassword" placeholder="Password"/>
+    </div>
+    <button class="btn-primary full-width" onclick="loginWithEmail()">Log In</button>
+    <div class="modal-switch">
+      Don't have an account? <a onclick="switchModal('loginModal','registerModal')">Sign up</a>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTER MODAL -->
+<div id="registerModal" class="modal-overlay hidden" onclick="handleModalBgClick(event,'registerModal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('registerModal')">✕</button>
+    <div class="modal-logo">⚡ ChargeShare</div>
+    <h2>Create Account</h2>
+    <button class="btn-google" onclick="loginWithGoogle()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" alt="Google"/>
+      Sign up with Google
+    </button>
+    <div class="divider">or</div>
+    <div class="form-group">
+      <input type="text" id="regName" placeholder="Display name"/>
+    </div>
+    <div class="form-group">
+      <input type="email" id="regEmail" placeholder="Email address"/>
+    </div>
+    <div class="form-group">
+      <input type="password" id="regPassword" placeholder="Password (min 8 chars)"/>
+    </div>
+    <button class="btn-primary full-width" onclick="registerWithEmail()">Create Account</button>
+    <div class="modal-switch">
+      Already have an account? <a onclick="switchModal('registerModal','loginModal')">Log in</a>
+    </div>
+  </div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div id="bookingModal" class="modal-overlay hidden" onclick="handleModalBgClick(event,'bookingModal')">
+  <div class="modal modal-wide">
+    <button class="modal-close" onclick="closeModal('bookingModal')">✕</button>
+    <h2>Book This Charger</h2>
+    <div id="bookingModalContent"></div>
+  </div>
+</div>
+
+<!-- REVIEW MODAL -->
+<div id="reviewModal" class="modal-overlay hidden" onclick="handleModalBgClick(event,'reviewModal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('reviewModal')">✕</button>
+    <h2>Leave a Review</h2>
+    <div id="reviewModalContent"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastContainer"></div>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="brand-icon">⚡</span> ChargeShare
+      <p>Sustainable EV charging, shared by the community.</p>
+    </div>
+    <div class="footer-links">
+      <div>
+        <h4>Platform</h4>
+        <a onclick="navigate('search')">Find Chargers</a>
+        <a onclick="navigate('host')">List Charger</a>
+        <a onclick="navigate('how-it-works')">How It Works</a>
+      </div>
+      <div>
+        <h4>Support</h4>
+        <a href="#">Help Centre</a>
+        <a href="#">Safety</a>
+        <a href="#">Contact Us</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 ChargeShare. Built with Supabase.</span>
+  </div>
+</footer>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
