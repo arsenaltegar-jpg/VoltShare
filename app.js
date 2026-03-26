@@ -35,6 +35,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // ✅ FIX: Wait for Supabase to resolve the session FIRST
+  // (handles OAuth redirect tokens in the URL before navigating)
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    currentUser = session.user;
+    await loadProfile();
+    updateNavUser();
+    subscribeToNotifications();
+  }
+
   // Photo preview wiring
   const lPhotos = document.getElementById('lPhotos');
   if (lPhotos) lPhotos.addEventListener('change', previewPhotos);
@@ -50,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterPriceVal').textContent = v >= 1 ? 'Any' : '$' + v.toFixed(2);
   });
 
-  // Read URL hash
+  // Read URL hash — now safe because session is already resolved
   const hash = location.hash.replace('#', '') || 'home';
   navigate(hash, false);
 });
