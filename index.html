@@ -39,6 +39,10 @@
     <a onclick="navigate('search')" class="nav-link">Find Chargers</a>
     <a onclick="navigate('host')" class="nav-link">Become a Host</a>
     <a onclick="navigate('how-it-works')" class="nav-link">How It Works</a>
+    <div class="mobile-nav-extra">
+      <button class="btn-ghost full-width" onclick="openModal('loginModal'); closeMobileMenu();">Log In</button>
+      <button class="btn-primary full-width" onclick="openModal('loginModal'); closeMobileMenu();">Sign Up</button>
+    </div>
   </div>
   <div class="nav-actions" id="navActions">
     <button class="btn-ghost" onclick="openModal('loginModal')">Log In</button>
@@ -83,7 +87,12 @@
         <p class="hero-subtitle">Book private EV chargers near you. Hosts earn passive income. Drivers charge conveniently. Everyone wins.</p>
         <div class="hero-search">
           <input type="text" id="heroSearch" placeholder="Enter your location or neighbourhood..."/>
-          <button class="btn-hero" onclick="navigate('search')">Find Chargers</button>
+          <button class="btn-hero" onclick="goToSearchFromHero()">Find Chargers</button>
+        </div>
+        <div class="hero-mini-pills">
+          <span>⚡ Instant booking</span>
+          <span>✅ Verified hosts</span>
+          <span>🗺️ Map + card view</span>
         </div>
         <div class="hero-stats">
           <div class="stat"><span class="stat-num">2,400+</span><span class="stat-label">Active Chargers</span></div>
@@ -145,11 +154,17 @@
   <!-- SEARCH PAGE -->
   <div id="page-search" class="page">
     <div class="search-layout">
-      <div class="search-sidebar">
-        <h2>Find Chargers</h2>
+      <aside class="search-sidebar" id="searchSidebar">
+        <div class="search-sidebar-head">
+          <div>
+            <h2>Find Chargers</h2>
+            <div class="search-sidebar-sub">Refine nearby chargers for a faster match.</div>
+          </div>
+          <button class="search-close" onclick="closeSearchFilters()">✕</button>
+        </div>
         <div class="filter-group">
           <label>📍 Location</label>
-          <input type="text" id="filterLocation" placeholder="Address or postcode" class="filter-input"/>
+          <input type="text" id="filterLocation" placeholder="Address, city or postcode" class="filter-input"/>
         </div>
         <div class="filter-group">
           <label>🔌 Connector Type</label>
@@ -183,9 +198,16 @@
             <input type="checkbox" id="filterAvailableNow"/> Available Now
           </label>
         </div>
-        <button class="btn-primary full-width" onclick="searchListings()">Search</button>
-      </div>
+        <button class="btn-primary full-width search-submit" onclick="applySearchFilters()">Search Chargers</button>
+      </aside>
       <div class="search-main">
+        <div class="search-toolbar">
+          <button class="btn-secondary search-filter-toggle" onclick="toggleSearchFilters()">☰ Filters</button>
+          <div>
+            <div class="search-toolbar-title">Available chargers</div>
+            <div class="search-toolbar-sub" id="searchSummary">Browse private and home EV chargers.</div>
+          </div>
+        </div>
         <div id="searchMap" class="search-map"></div>
         <div class="search-results" id="searchResults"></div>
       </div>

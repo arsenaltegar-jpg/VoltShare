@@ -60,6 +60,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterPriceVal').textContent = v >= 1 ? 'Any' : '$' + v.toFixed(2);
   });
 
+  const filterLocation = document.getElementById('filterLocation');
+  if (filterLocation) {
+    filterLocation.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applySearchFilters();
+      }
+    });
+  }
+
+  const heroSearch = document.getElementById('heroSearch');
+  if (heroSearch) {
+    heroSearch.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        goToSearchFromHero();
+      }
+    });
+  }
+
   // Read URL hash — now safe because session is already resolved
   const hash = location.hash.replace('#', '') || 'home';
   navigate(hash, false);
@@ -96,6 +116,8 @@ function navigate(page, pushState = true) {
   // Close avatar dropdown
   const dd = document.getElementById('avatarDropdown');
   if (dd) dd.classList.add('hidden');
+  closeMobileMenu();
+  closeSearchFilters();
 
   // Page-specific init
   switch (page) {
@@ -112,6 +134,18 @@ function navigate(page, pushState = true) {
 
   // Update active nav link
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const navMap = {
+    'home': 0,
+    'search': 0,
+    'host': 1,
+    'my-listings': 1,
+    'how-it-works': 2
+  };
+  const navIndex = navMap[page];
+  if (navIndex !== undefined) {
+    const link = document.querySelectorAll('.nav-link')[navIndex];
+    if (link) link.classList.add('active');
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -482,11 +516,15 @@ function renderListingCard(l, isOwner = false) {
 // SEARCH
 // ══════════════════════════════════════════════════════════
 async function initSearchPage() {
-  // Clear any stale loading state
-  const resultsEl = document.getElementById('searchResults');
-  if (resultsEl && !window._lastSearchResults) {
-    resultsEl.innerHTML = '';
+  const heroSearch = document.getElementById('heroSearch');
+  const filterLocation = document.getElementById('filterLocation');
+  if (heroSearch && filterLocation && !filterLocation.value && heroSearch.value.trim()) {
+    filterLocation.value = heroSearch.value.trim();
   }
+
+  const resultsEl = document.getElementById('searchResults');
+  if (resultsEl && !window._lastSearchResults) resultsEl.innerHTML = '';
+
   await searchListings();
   if (!searchMap) {
     setTimeout(() => {
@@ -496,22 +534,28 @@ async function initSearchPage() {
       }).addTo(searchMap);
       plotMarkersOnMap(window._lastSearchResults || []);
     }, 200);
+  } else {
+    setTimeout(() => searchMap.invalidateSize(), 120);
   }
 }
 
 async function searchListings() {
   const resultsEl = document.getElementById('searchResults');
+  const summaryEl = document.getElementById('searchSummary');
   if (resultsEl) resultsEl.innerHTML = '<p class="results-loading">Searching...</p>';
+  if (summaryEl) summaryEl.textContent = 'Checking chargers that match your filters...';
 
   let query = sb.from('listings')
     .select('*, listing_photos(url), profiles!host_id(full_name, google_verified, avatar_url, trust_score)')
     .eq('is_active', true);
 
+  const location = document.getElementById('filterLocation')?.value.trim().toLowerCase();
   const connector = document.getElementById('filterConnector')?.value;
   const power = parseInt(document.getElementById('filterPower')?.value || 3);
   const price = parseFloat(document.getElementById('filterPrice')?.value || 1);
   const verifiedOnly = document.getElementById('filterVerified')?.checked;
   const instantOnly = document.getElementById('filterInstant')?.checked;
+  const availableNowOnly = document.getElementById('filterAvailableNow')?.checked;
 
   if (connector) query = query.eq('connector_type', connector);
   if (power > 3) query = query.gte('power_kw', power);
@@ -520,13 +564,84 @@ async function searchListings() {
   if (instantOnly) query = query.eq('instant_booking', true);
 
   const { data, error } = await query.limit(50);
-  window._lastSearchResults = data || [];
+  if (error) {
+    if (resultsEl) resultsEl.innerHTML = '<p class="empty-state">Error loading results</p>';
+    if (summaryEl) summaryEl.textContent = 'Unable to load chargers right now.';
+    return;
+  }
 
-  if (error) { resultsEl.innerHTML = '<p class="empty-state">Error loading results</p>'; return; }
-  if (!data?.length) { resultsEl.innerHTML = '<p class="empty-state">No chargers found. Try adjusting your filters.</p>'; return; }
+  let filtered = data || [];
 
-  resultsEl.innerHTML = data.map(l => renderListingCard(l)).join('');
-  if (searchMap) plotMarkersOnMap(data);
+  if (location) {
+    filtered = filtered.filter(l => {
+      const haystack = [l.city, l.postcode, l.address_full, l.title, l.description]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(location);
+    });
+  }
+
+  if (availableNowOnly) {
+    const now = new Date();
+    const day = now.getDay();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    filtered = filtered.filter(l => {
+      const days = Array.isArray(l.available_days) ? l.available_days : [];
+      if (days.length && !days.includes(day)) return false;
+      const from = toMinutes(l.available_from);
+      const to = toMinutes(l.available_to);
+      if (from === null || to === null) return true;
+      if (to >= from) return currentMinutes >= from && currentMinutes <= to;
+      return currentMinutes >= from || currentMinutes <= to;
+    });
+  }
+
+  window._lastSearchResults = filtered;
+
+  if (!filtered.length) {
+    if (resultsEl) resultsEl.innerHTML = '<p class="empty-state">No chargers found. Try adjusting your filters.</p>';
+    if (summaryEl) summaryEl.textContent = '0 chargers found';
+    if (searchMap) plotMarkersOnMap([]);
+    return;
+  }
+
+  if (resultsEl) resultsEl.innerHTML = filtered.map(l => renderListingCard(l)).join('');
+  if (summaryEl) {
+    const parts = [`${filtered.length} charger${filtered.length > 1 ? 's' : ''} found`];
+    if (location) parts.push(`near ${document.getElementById('filterLocation').value.trim()}`);
+    if (instantOnly) parts.push('instant booking');
+    if (verifiedOnly) parts.push('verified only');
+    summaryEl.textContent = parts.join(' · ');
+  }
+  if (searchMap) plotMarkersOnMap(filtered);
+}
+
+function applySearchFilters() {
+  searchListings();
+  closeSearchFilters();
+}
+
+function goToSearchFromHero() {
+  const heroSearch = document.getElementById('heroSearch');
+  const filterLocation = document.getElementById('filterLocation');
+  if (heroSearch && filterLocation) filterLocation.value = heroSearch.value.trim();
+  navigate('search');
+}
+
+function toggleSearchFilters() {
+  document.getElementById('searchSidebar')?.classList.toggle('mobile-open');
+}
+
+function closeSearchFilters() {
+  document.getElementById('searchSidebar')?.classList.remove('mobile-open');
+}
+
+function toMinutes(value) {
+  if (!value || !value.includes(':')) return null;
+  const [h, m] = value.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
 }
 
 function plotMarkersOnMap(listings) {
@@ -1331,6 +1446,10 @@ function toggleMobileMenu() {
   document.getElementById('navLinks').classList.toggle('mobile-open');
 }
 
+function closeMobileMenu() {
+  document.getElementById('navLinks').classList.remove('mobile-open');
+}
+
 // ══════════════════════════════════════════════════════════
 // MODAL HELPERS
 // ══════════════════════════════════════════════════════════
@@ -1379,4 +1498,16 @@ document.addEventListener('click', e => {
   const dd = document.getElementById('avatarDropdown');
   const menu = document.getElementById('avatarMenu');
   if (dd && menu && !menu.contains(e.target)) dd.classList.add('hidden');
+
+  const navLinks = document.getElementById('navLinks');
+  const hamburger = document.getElementById('hamburger');
+  if (navLinks && hamburger && navLinks.classList.contains('mobile-open') && !navLinks.contains(e.target) && !hamburger.contains(e.target)) {
+    closeMobileMenu();
+  }
+
+  const searchSidebar = document.getElementById('searchSidebar');
+  const filterToggle = document.querySelector('.search-filter-toggle');
+  if (searchSidebar && searchSidebar.classList.contains('mobile-open') && !searchSidebar.contains(e.target) && !(filterToggle && filterToggle.contains(e.target))) {
+    closeSearchFilters();
+  }
 });
