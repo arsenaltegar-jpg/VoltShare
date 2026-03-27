@@ -482,6 +482,11 @@ function renderListingCard(l, isOwner = false) {
 // SEARCH
 // ══════════════════════════════════════════════════════════
 async function initSearchPage() {
+  // Clear any stale loading state
+  const resultsEl = document.getElementById('searchResults');
+  if (resultsEl && !window._lastSearchResults) {
+    resultsEl.innerHTML = '';
+  }
   await searchListings();
   if (!searchMap) {
     setTimeout(() => {
@@ -914,31 +919,70 @@ async function openConversation(convId, otherName) {
   const chatArea = document.getElementById('chatArea');
   chatArea.innerHTML = `
     <div class="chat-header"><strong>${escHtml(otherName)}</strong></div>
-    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-messages" id="chatMessages"><p class="muted" style="text-align:center;padding:1rem">Loading messages…</p></div>
     <div class="chat-input-row">
-      <input type="text" id="chatInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage('${convId}')"/>
+      <input type="text" id="chatInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendMessage('${convId}')"/>
       <button class="btn-primary" onclick="sendMessage('${convId}')">Send</button>
     </div>`;
+
   await loadChatMessages(convId);
 
-  // Subscribe to new messages
-  if (realtimeChannel) sb.removeChannel(realtimeChannel);
+  // Tear down any previous realtime channel before subscribing
+  if (realtimeChannel) {
+    await sb.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
   realtimeChannel = sb.channel('chat:' + convId)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` }, () => loadChatMessages(convId))
-    .subscribe();
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: `conversation_id=eq.${convId}`
+    }, (payload) => {
+      // Only reload if the message is from someone else (ours are already shown optimistically)
+      if (payload.new?.sender_id !== currentUser.id) {
+        loadChatMessages(convId);
+      }
+    })
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.warn('Realtime chat subscription failed, falling back to polling');
+      }
+    });
 }
 
 async function loadChatMessages(convId) {
-  const { data } = await sb.from('messages').select('*, profiles!sender_id(full_name, avatar_url)').eq('conversation_id', convId).order('created_at', { ascending: true });
+  const { data } = await sb.from('messages')
+    .select('*, profiles!sender_id(full_name, avatar_url)')
+    .eq('conversation_id', convId)
+    .order('created_at', { ascending: true });
   const el = document.getElementById('chatMessages');
   if (!el) return;
-  el.innerHTML = (data || []).map(m => {
+  if (!data?.length) {
+    el.innerHTML = '<p class="muted" style="text-align:center;padding:1rem">No messages yet. Say hello! 👋</p>';
+    return;
+  }
+  // Group consecutive messages from the same sender
+  let html = '';
+  let lastSender = null;
+  data.forEach(m => {
     const mine = m.sender_id === currentUser.id;
-    return `<div class="chat-msg ${mine ? 'mine' : 'theirs'}">
-      <div class="chat-bubble">${escHtml(m.content)}</div>
-      <div class="chat-time">${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+    const showName = !mine && m.sender_id !== lastSender;
+    const avatar = m.profiles?.avatar_url
+      ? `<img src="${m.profiles.avatar_url}" class="chat-avatar" alt=""/>`
+      : `<div class="chat-avatar-fallback">${(m.profiles?.full_name || 'U')[0].toUpperCase()}</div>`;
+    const time = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    html += `<div class="chat-msg ${mine ? 'mine' : 'theirs'}">
+      ${!mine ? `<div class="chat-avatar-wrap">${avatar}</div>` : ''}
+      <div class="chat-msg-body">
+        ${showName ? `<div class="chat-sender-name">${escHtml(m.profiles?.full_name || 'User')}</div>` : ''}
+        <div class="chat-bubble">${escHtml(m.content)}</div>
+        <div class="chat-time">${time}</div>
+      </div>
     </div>`;
-  }).join('');
+    lastSender = m.sender_id;
+  });
+  el.innerHTML = html;
   el.scrollTop = el.scrollHeight;
 }
 
@@ -946,8 +990,39 @@ async function sendMessage(convId) {
   const input = document.getElementById('chatInput');
   const content = input?.value.trim();
   if (!content) return;
+
+  // Optimistic UI — show the message immediately
   input.value = '';
-  await sb.from('messages').insert({ conversation_id: convId, sender_id: currentUser.id, content, created_at: new Date().toISOString() });
+  const el = document.getElementById('chatMessages');
+  if (el) {
+    // Remove empty-state placeholder if present
+    const placeholder = el.querySelector('p.muted');
+    if (placeholder) placeholder.remove();
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const msgEl = document.createElement('div');
+    msgEl.className = 'chat-msg mine';
+    msgEl.innerHTML = `<div class="chat-msg-body">
+      <div class="chat-bubble">${escHtml(content)}</div>
+      <div class="chat-time">${time}</div>
+    </div>`;
+    el.appendChild(msgEl);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  const { error } = await sb.from('messages').insert({
+    conversation_id: convId,
+    sender_id: currentUser.id,
+    content,
+    created_at: new Date().toISOString()
+  });
+
+  if (error) {
+    showToast('Failed to send message. Please try again.', 'error');
+    // Re-populate input so user doesn't lose their message
+    if (input) input.value = content;
+    // Remove the optimistic bubble
+    if (el) el.lastElementChild?.remove();
+  }
 }
 
 async function messageHost(hostId) {
@@ -1072,10 +1147,11 @@ async function loadAdminPanel() {
 }
 
 async function switchAdminTab(tab) {
-  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  const adminTabEls = document.querySelectorAll('#page-admin .tabs .tab');
+  adminTabEls.forEach(t => t.classList.remove('active'));
   const tabs = ['verifications', 'listings', 'bookings', 'reports', 'users'];
   const idx = tabs.indexOf(tab);
-  document.querySelectorAll('.tabs .tab')[idx]?.classList.add('active');
+  adminTabEls[idx]?.classList.add('active');
 
   const content = document.getElementById('adminContent');
   content.innerHTML = '<p class="results-loading">Loading...</p>';
